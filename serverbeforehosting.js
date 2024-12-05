@@ -7,9 +7,8 @@ const app = express();
 app.use(cors()); // فعال‌سازی CORS
 app.use(bodyParser.json()); // برای دریافت داده‌ها به صورت JSON
 
-// اتصال به MongoDB (استفاده از متغیر محیطی DATABASE_URL)
-const dbURI = process.env.DATABASE_URL || 'mongodb://localhost:27017/captchaDB'; // اگر متغیر محیطی وجود نداشت از localhost استفاده کن
-mongoose.connect(dbURI, { useNewUrlParser: true, useUnifiedTopology: true })
+// اتصال به MongoDB
+mongoose.connect('mongodb://localhost:27017/captchaDB', { useNewUrlParser: true, useUnifiedTopology: true })
     .then(() => {
         console.log('Connected to MongoDB');
     })
@@ -92,8 +91,7 @@ app.get('/get-oldest-captcha', async (req, res) => {
     }
 });
 
-// راه‌اندازی سرور در پورت مشخص شده از Render
-const PORT = process.env.PORT || 5000;  // استفاده از پورت Render یا 5000 به‌طور پیش‌فرض
-app.listen(PORT, () => {
-    console.log(`Server is running on http://localhost:${PORT}`);
+// راه‌اندازی سرور در پورت 5000
+app.listen(5000, () => {
+    console.log('Server is running on http://localhost:5000');
 });
