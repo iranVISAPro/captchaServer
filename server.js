@@ -9,7 +9,8 @@ app.use(bodyParser.json()); // برای دریافت داده‌ها به صور
 
 // اتصال به MongoDB (رشته اتصال MongoDB Atlas)
 const dbURI = 'mongodb+srv://sunshineonlineservices:Lovely%20alone@iranvisa.4iu1j.mongodb.net/captchaDB?retryWrites=true&w=majority&appName=iranVISA';
-mongoose.connect(dbURI, { useNewUrlParser: true, useUnifiedTopology: true })
+mongoose.connect(dbURI)
+
     .then(() => {
         console.log('Connected to MongoDB');
     })
