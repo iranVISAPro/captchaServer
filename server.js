@@ -9,7 +9,7 @@ app.use(cors()); // فعال‌سازی CORS
 app.use(bodyParser.json()); // برای دریافت داده‌ها به صورت JSON
 
 // کلید محرمانه برای امضای توکن‌ها
-const SECRET_KEY = 'yourSecretKey';
+const SECRET_KEY = '9A(12m@!10E)!6s^6O^';
 
 // آرایه برای ذخیره توکن‌های تولید شده
 let preGeneratedTokens = [];
