@@ -7,8 +7,8 @@ const app = express();
 app.use(cors()); // فعال‌سازی CORS
 app.use(bodyParser.json()); // برای دریافت داده‌ها به صورت JSON
 
-// اتصال به MongoDB (استفاده از متغیر محیطی DATABASE_URL)
-const dbURI = process.env.DATABASE_URL || 'mongodb://localhost:27017/captchaDB'; // اگر متغیر محیطی وجود نداشت از localhost استفاده کن
+// اتصال به MongoDB (رشته اتصال MongoDB Atlas)
+const dbURI = process.env.DATABASE_URL || 'mongodb+srv://sunshineonlineservices:Lovely%20alone@cluster0.mongodb.net/captchaDB?retryWrites=true&w=majority';
 mongoose.connect(dbURI, { useNewUrlParser: true, useUnifiedTopology: true })
     .then(() => {
         console.log('Connected to MongoDB');
