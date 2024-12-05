@@ -11,6 +11,9 @@ app.use(bodyParser.json()); // برای دریافت داده‌ها به صور
 // کلید محرمانه برای امضای توکن‌ها
 const SECRET_KEY = 'yourSecretKey';
 
+// آرایه برای ذخیره توکن‌های تولید شده
+let preGeneratedTokens = [];
+
 // اتصال به MongoDB (رشته اتصال MongoDB Atlas)
 const dbURI = 'mongodb+srv://sunshineonlineservices:Lovely%20alone@iranvisa.4iu1j.mongodb.net/captchaDB?retryWrites=true&w=majority&appName=iranVISA';
 mongoose.connect(dbURI)
@@ -111,18 +114,23 @@ app.get('/get-oldest-captcha', authenticateToken, async (req, res) => {
     }
 });
 
-// مسیر برای ورود و دریافت توکن
-app.post('/login', (req, res) => {
-    const { username, password } = req.body;
+// مسیر برای تولید توکن‌های پیشاپیش
+app.get('/generate-tokens', (req, res) => {
+    const usernames = ['user1', 'user2', 'user3', 'user4', 'user5', 'user6', 'user7', 'user8', 'user9', 'user10'];
+    
+    preGeneratedTokens = usernames.map(username => {
+        return jwt.sign({ username }, SECRET_KEY, { expiresIn: '30d' }); // توکن معتبر برای 30 روز
+    });
 
-    // در اینجا شما می‌توانید اعتبارسنجی واقعی بر اساس نام کاربری و رمز عبور انجام دهید
-    // برای سادگی، فقط یک اعتبارسنجی ساده داریم
-    if (username === 'john' && password === 'password123') { 
-        const token = jwt.sign({ username }, SECRET_KEY, { expiresIn: '1h' }); // توکن برای 1 ساعت معتبر است
-        res.json({ token });
-    } else {
-        res.status(401).json({ message: 'Invalid username or password' });
+    res.json({ tokens: preGeneratedTokens });
+});
+
+// مسیر برای مشاهده توکن‌های تولید شده
+app.get('/get-tokens', (req, res) => {
+    if (preGeneratedTokens.length === 0) {
+        return res.status(404).json({ message: 'No pre-generated tokens found' });
     }
+    res.json({ tokens: preGeneratedTokens });
 });
 
 // راه‌اندازی سرور در پورت مشخص شده از Render
