@@ -8,7 +8,7 @@ app.use(cors()); // فعال‌سازی CORS
 app.use(bodyParser.json()); // برای دریافت داده‌ها به صورت JSON
 
 // اتصال به MongoDB (رشته اتصال MongoDB Atlas)
-const dbURI = process.env.DATABASE_URL || 'mongodb+srv://sunshineonlineservices:Lovely%20alone@cluster0.mongodb.net/captchaDB?retryWrites=true&w=majority';
+const dbURI = 'mongodb+srv://sunshineonlineservices:Lovely%20alone@iranvisa.4iu1j.mongodb.net/captchaDB?retryWrites=true&w=majority&appName=iranVISA';
 mongoose.connect(dbURI, { useNewUrlParser: true, useUnifiedTopology: true })
     .then(() => {
         console.log('Connected to MongoDB');
