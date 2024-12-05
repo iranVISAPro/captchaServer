@@ -2,15 +2,18 @@ const express = require('express');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
 const cors = require('cors');
+const jwt = require('jsonwebtoken'); // برای ایجاد و بررسی توکن
 
 const app = express();
 app.use(cors()); // فعال‌سازی CORS
 app.use(bodyParser.json()); // برای دریافت داده‌ها به صورت JSON
 
+// کلید محرمانه برای امضای توکن‌ها
+const SECRET_KEY = 'yourSecretKey';
+
 // اتصال به MongoDB (رشته اتصال MongoDB Atlas)
 const dbURI = 'mongodb+srv://sunshineonlineservices:Lovely%20alone@iranvisa.4iu1j.mongodb.net/captchaDB?retryWrites=true&w=majority&appName=iranVISA';
 mongoose.connect(dbURI)
-
     .then(() => {
         console.log('Connected to MongoDB');
     })
@@ -39,8 +42,26 @@ captchaSchema.index({ created_at: 1 }, { expireAfterSeconds: 7200 });
 
 const Captcha = mongoose.model('Captcha', captchaSchema, 'captchas');
 
+// Middleware برای اعتبارسنجی توکن
+const authenticateToken = (req, res, next) => {
+    const token = req.headers['authorization']; // دریافت توکن از هدر Authorization
+
+    if (!token) {
+        return res.status(403).json({ message: 'Access denied. No token provided.' });
+    }
+
+    // اعتبارسنجی توکن
+    jwt.verify(token, SECRET_KEY, (err, user) => {
+        if (err) {
+            return res.status(403).json({ message: 'Invalid or expired token.' });
+        }
+        req.user = user; // ذخیره اطلاعات کاربر در شیء درخواست
+        next(); // ادامه فرآیند
+    });
+};
+
 // مسیر POST برای ذخیره داده‌ها در MongoDB
-app.post('/save-captcha', async (req, res) => {
+app.post('/save-captcha', authenticateToken, async (req, res) => {
     const { captcha_value, user_input } = req.body;
 
     const newCaptchaData = new Captcha({
@@ -58,9 +79,8 @@ app.post('/save-captcha', async (req, res) => {
 });
 
 // مسیر GET برای دریافت آخرین کپچا
-app.get('/get-latest-captcha', async (req, res) => {
+app.get('/get-latest-captcha', authenticateToken, async (req, res) => {
     try {
-        // پیدا کردن آخرین سند بر اساس تاریخ ایجاد (به صورت نزولی)
         const latestCaptcha = await Captcha.findOne().sort({ created_at: -1 });
         
         if (latestCaptcha) {
@@ -75,13 +95,11 @@ app.get('/get-latest-captcha', async (req, res) => {
 });
 
 // مسیر GET برای دریافت قدیمی‌ترین کپچا و حذف آن از دیتابیس
-app.get('/get-oldest-captcha', async (req, res) => {
+app.get('/get-oldest-captcha', authenticateToken, async (req, res) => {
     try {
-        // پیدا کردن قدیمی‌ترین کپچا بر اساس تاریخ ایجاد (به صورت صعودی)
         const oldestCaptcha = await Captcha.findOne().sort({ created_at: 1 });
 
         if (oldestCaptcha) {
-            // حذف کپچا پس از دریافت آن
             await Captcha.deleteOne({ _id: oldestCaptcha._id });
             res.status(200).json(oldestCaptcha);
         } else {
@@ -93,8 +111,22 @@ app.get('/get-oldest-captcha', async (req, res) => {
     }
 });
 
+// مسیر برای ورود و دریافت توکن
+app.post('/login', (req, res) => {
+    const { username, password } = req.body;
+
+    // در اینجا شما می‌توانید اعتبارسنجی واقعی بر اساس نام کاربری و رمز عبور انجام دهید
+    // برای سادگی، فقط یک اعتبارسنجی ساده داریم
+    if (username === 'john' && password === 'password123') { 
+        const token = jwt.sign({ username }, SECRET_KEY, { expiresIn: '1h' }); // توکن برای 1 ساعت معتبر است
+        res.json({ token });
+    } else {
+        res.status(401).json({ message: 'Invalid username or password' });
+    }
+});
+
 // راه‌اندازی سرور در پورت مشخص شده از Render
-const PORT = process.env.PORT || 5000;  // استفاده از پورت Render یا 5000 به‌طور پیش‌فرض
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
 });
