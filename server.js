@@ -26,33 +26,32 @@ captchaSchema.index({ created_at: 1 }, { expireAfterSeconds: 7200 });
 
 const Captcha = mongoose.model('Captcha', captchaSchema, 'captchas');
 
-// Middleware برای اعتبارسنجی توکن و Fingerprint
+// Middleware برای اعتبارسنجی توکن
 const authenticateToken = (req, res, next) => {
     const token = req.headers['authorization']?.split(' ')[1];
-    const { fingerprint } = req.body;
 
-    if (!token || !fingerprint) {
-        return res.status(403).json({ message: 'Token and fingerprint are required.' });
+    if (!token) {
+        return res.status(403).json({ message: 'Token is required.' });
     }
 
     jwt.verify(token, SECRET_KEY, (err, decoded) => {
-        if (err || decoded.fingerprint !== fingerprint) {
-            return res.status(403).json({ message: 'Invalid token or fingerprint.' });
+        if (err) {
+            return res.status(403).json({ message: 'Invalid token.' });
         }
         req.user = decoded;
         next();
     });
 };
 
-// مسیر برای تولید توکن همراه با Fingerprint
+// مسیر برای تولید توکن
 app.post('/generate-token', (req, res) => {
-    const { username, fingerprint } = req.body;
+    const { username } = req.body;
 
-    if (!username || !fingerprint) {
-        return res.status(400).json({ message: 'Username and fingerprint are required.' });
+    if (!username) {
+        return res.status(400).json({ message: 'Username is required.' });
     }
 
-    const token = jwt.sign({ username, fingerprint }, SECRET_KEY, { expiresIn: '30d' });
+    const token = jwt.sign({ username }, SECRET_KEY, { expiresIn: '30d' });
     res.json({ token });
 });
 
