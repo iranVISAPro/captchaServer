@@ -36,6 +36,9 @@ captchaSchema.index({ created_at: 1 }, { expireAfterSeconds: 7200 });
 
 const Captcha = mongoose.model('Captcha', captchaSchema, 'captchas');
 
+// تعریف یوزرها
+const users = ['user1', 'user2', 'user3', 'user4', 'user5', 'user6', 'user7', 'user8', 'user9', 'user10'];
+
 // Middleware برای اعتبارسنجی توکن
 const authenticateToken = (req, res, next) => {
     const token = req.headers['authorization']?.split(' ')[1];
@@ -61,6 +64,12 @@ app.post('/generate-token', (req, res) => {
         return res.status(400).json({ message: 'Username is required.' });
     }
 
+    // بررسی اینکه نام کاربری در لیست یوزرها وجود دارد یا خیر
+    if (!users.includes(username)) {
+        return res.status(403).json({ message: 'User not authorized.' });
+    }
+
+    // تولید توکن
     const token = jwt.sign({ username }, SECRET_KEY, { expiresIn: '30d' });
     res.json({ token });
 });
