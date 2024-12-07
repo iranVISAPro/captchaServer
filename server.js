@@ -2,139 +2,90 @@ const express = require('express');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
 const cors = require('cors');
-const jwt = require('jsonwebtoken'); // برای ایجاد و بررسی توکن
+const jwt = require('jsonwebtoken');
 
 const app = express();
-app.use(cors()); // فعال‌سازی CORS
-app.use(bodyParser.json()); // برای دریافت داده‌ها به صورت JSON
+app.use(cors());
+app.use(bodyParser.json());
 
-// کلید محرمانه برای امضای توکن‌ها
-const SECRET_KEY = '9A(12m@!10E)!6s^6O^';
+const SECRET_KEY = '9A(12m@!10E)!6s^6O^'; // کلید امضای توکن
 
-// آرایه برای ذخیره توکن‌های تولید شده
-let preGeneratedTokens = [];
-
-// اتصال به MongoDB (رشته اتصال MongoDB Atlas)
+// اتصال به دیتابیس MongoDB
 const dbURI = 'mongodb+srv://sunshineonlineservices:Lovely%20alone@iranvisa.4iu1j.mongodb.net/captchaDB?retryWrites=true&w=majority&appName=iranVISA';
 mongoose.connect(dbURI)
-    .then(() => {
-        console.log('Connected to MongoDB');
-    })
-    .catch((err) => {
-        console.error('Error connecting to MongoDB:', err);
-    });
+    .then(() => console.log('Connected to MongoDB'))
+    .catch(err => console.error('Error connecting to MongoDB:', err));
 
-// ایجاد اسکیمای داده
+// اسکیمای Captcha
 const captchaSchema = new mongoose.Schema({
     captcha_value: String,
     user_input: { type: String, required: true },
     created_at: { type: Date, default: Date.now }
 });
-
-// Middleware برای تبدیل user_input به حروف بزرگ قبل از ذخیره
-captchaSchema.pre('save', function(next) {
-    if (this.user_input) {
-        // تبدیل user_input به حروف بزرگ
-        this.user_input = this.user_input.toUpperCase();
-    }
-    next(); // ادامه فرآیند ذخیره‌سازی
-});
-
-// ایجاد TTL index به‌صورت دستی برای حذف رکوردها پس از 2 ساعت (7200 ثانیه)
 captchaSchema.index({ created_at: 1 }, { expireAfterSeconds: 7200 });
 
 const Captcha = mongoose.model('Captcha', captchaSchema, 'captchas');
 
-// Middleware برای اعتبارسنجی توکن
+// Middleware برای اعتبارسنجی توکن و Fingerprint
 const authenticateToken = (req, res, next) => {
-    const token = req.headers['authorization']; // دریافت توکن از هدر Authorization
+    const token = req.headers['authorization']?.split(' ')[1];
+    const { fingerprint } = req.body;
 
-    if (!token) {
-        return res.status(403).json({ message: 'Access denied. No token provided.' });
+    if (!token || !fingerprint) {
+        return res.status(403).json({ message: 'Token and fingerprint are required.' });
     }
 
-    // اعتبارسنجی توکن
-    jwt.verify(token, SECRET_KEY, (err, user) => {
-        if (err) {
-            return res.status(403).json({ message: 'Invalid or expired token.' });
+    jwt.verify(token, SECRET_KEY, (err, decoded) => {
+        if (err || decoded.fingerprint !== fingerprint) {
+            return res.status(403).json({ message: 'Invalid token or fingerprint.' });
         }
-        req.user = user; // ذخیره اطلاعات کاربر در شیء درخواست
-        next(); // ادامه فرآیند
+        req.user = decoded;
+        next();
     });
 };
 
-// مسیر POST برای ذخیره داده‌ها در MongoDB
+// مسیر برای تولید توکن همراه با Fingerprint
+app.post('/generate-token', (req, res) => {
+    const { username, fingerprint } = req.body;
+
+    if (!username || !fingerprint) {
+        return res.status(400).json({ message: 'Username and fingerprint are required.' });
+    }
+
+    const token = jwt.sign({ username, fingerprint }, SECRET_KEY, { expiresIn: '30d' });
+    res.json({ token });
+});
+
+// مسیر برای ذخیره Captcha
 app.post('/save-captcha', authenticateToken, async (req, res) => {
     const { captcha_value, user_input } = req.body;
 
-    const newCaptchaData = new Captcha({
-        captcha_value,
-        user_input,
-        created_at: new Date()
-    });
-
     try {
-        await newCaptchaData.save();
-        res.status(200).json({ message: 'Data saved to MongoDB' });
+        const newCaptcha = new Captcha({ captcha_value, user_input });
+        await newCaptcha.save();
+        res.status(200).json({ message: 'Captcha saved successfully.' });
     } catch (error) {
-        res.status(500).json({ message: 'Error saving data', error });
+        res.status(500).json({ message: 'Error saving captcha', error });
     }
 });
 
-// مسیر GET برای دریافت آخرین کپچا
-app.get('/get-latest-captcha', authenticateToken, async (req, res) => {
-    try {
-        const latestCaptcha = await Captcha.findOne().sort({ created_at: -1 });
-        
-        if (latestCaptcha) {
-            res.status(200).json(latestCaptcha);
-        } else {
-            res.status(404).json({ message: 'No captcha data found' });
-        }
-    } catch (error) {
-        console.error('Error fetching captcha:', error);
-        res.status(500).json({ message: 'Error fetching captcha data', error });
-    }
-});
-
-// مسیر GET برای دریافت قدیمی‌ترین کپچا و حذف آن از دیتابیس
+// مسیر برای دریافت قدیمی‌ترین Captcha و حذف آن
 app.get('/get-oldest-captcha', authenticateToken, async (req, res) => {
     try {
         const oldestCaptcha = await Captcha.findOne().sort({ created_at: 1 });
-
         if (oldestCaptcha) {
             await Captcha.deleteOne({ _id: oldestCaptcha._id });
             res.status(200).json(oldestCaptcha);
         } else {
-            res.status(404).json({ message: 'No captcha data found' });
+            res.status(404).json({ message: 'No captcha data found.' });
         }
     } catch (error) {
-        console.error('Error fetching or deleting captcha:', error);
         res.status(500).json({ message: 'Error fetching or deleting captcha', error });
     }
 });
 
-// مسیر برای تولید توکن‌های پیشاپیش
-app.get('/generate-tokens', (req, res) => {
-    const usernames = ['user1', 'user2', 'user3', 'user4', 'user5', 'user6', 'user7', 'user8', 'user9', 'user10'];
-    
-    preGeneratedTokens = usernames.map(username => {
-        return jwt.sign({ username }, SECRET_KEY, { expiresIn: '30d' }); // توکن معتبر برای 30 روز
-    });
-
-    res.json({ tokens: preGeneratedTokens });
-});
-
-// مسیر برای مشاهده توکن‌های تولید شده
-app.get('/get-tokens', (req, res) => {
-    if (preGeneratedTokens.length === 0) {
-        return res.status(404).json({ message: 'No pre-generated tokens found' });
-    }
-    res.json({ tokens: preGeneratedTokens });
-});
-
-// راه‌اندازی سرور در پورت مشخص شده از Render
+// راه‌اندازی سرور
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-    console.log(`Server is running on http://localhost:${PORT}`);
+    console.log(`Server running on http://localhost:${PORT}`);
 });
