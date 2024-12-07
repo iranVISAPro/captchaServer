@@ -5,7 +5,17 @@ const cors = require('cors');
 const jwt = require('jsonwebtoken');
 
 const app = express();
-app.use(cors());
+
+// مجاز کردن فقط دامنه مورد نظر برای درخواست‌ها
+const corsOptions = {
+    origin: 'https://evisatraveller.mfa.ir', // دامنه مورد نظر شما
+    methods: 'GET,POST', // متدهایی که اجازه داده می‌شود
+    allowedHeaders: 'Content-Type,Authorization', // هدرهای مجاز
+    preflightContinue: false, // برای درخواست‌های Preflight
+    optionsSuccessStatus: 200, // وضعیت پاسخ موفق برای درخواست‌های Preflight
+};
+
+app.use(cors(corsOptions)); // فعال کردن CORS با تنظیمات خاص
 app.use(bodyParser.json());
 
 const SECRET_KEY = '9A(12m@!10E)!6s^6O^'; // کلید امضای توکن
