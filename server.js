@@ -26,7 +26,7 @@ mongoose.connect(dbURI)
 
 // ایجاد اسکیمای داده
 const captchaSchema = new mongoose.Schema({
-    captcha_value: String,
+    captcha_value: { type: String, unique: true }, // ایجاد ایندکس یکتا برای captcha_value
     user_input: { type: String, required: true },
     created_at: { type: Date, default: Date.now }
 });
@@ -67,16 +67,26 @@ const authenticateToken = (req, res, next) => {
 app.post('/save-captcha', authenticateToken, async (req, res) => {
     const { captcha_value, user_input } = req.body;
 
-    const newCaptchaData = new Captcha({
-        captcha_value,
-        user_input,
-        created_at: new Date()
-    });
-
     try {
+        // بررسی وجود captcha_value در دیتابیس قبل از ذخیره
+        const existingCaptcha = await Captcha.findOne({ captcha_value });
+
+        if (existingCaptcha) {
+            return res.status(409).json({ message: 'کپچا قبلاً ذخیره شده است' }); // ارسال پیام در صورت تکراری بودن
+        }
+
+        const newCaptchaData = new Captcha({
+            captcha_value,
+            user_input,
+            created_at: new Date()
+        });
+
         await newCaptchaData.save();
         res.status(200).json({ message: 'Data saved to MongoDB' });
     } catch (error) {
+        if (error.code === 11000) { // این خطا مربوط به duplicate key است
+            return res.status(409).json({ message: 'کپچا قبلاً ذخیره شده است' });
+        }
         res.status(500).json({ message: 'Error saving data', error });
     }
 });
