@@ -50,12 +50,14 @@ const authenticateToken = (req, res, next) => {
     const token = req.headers['authorization']; // دریافت توکن از هدر Authorization
 
     if (!token) {
+        console.log('No token provided');
         return res.status(403).json({ message: 'Access denied. No token provided.' });
     }
 
     // اعتبارسنجی توکن
     jwt.verify(token, SECRET_KEY, (err, user) => {
         if (err) {
+            console.log('Token verification failed:', err);
             return res.status(403).json({ message: 'Invalid or expired token.' });
         }
         req.user = user; // ذخیره اطلاعات کاربر در شیء درخواست
@@ -146,6 +148,8 @@ app.get('/get-tokens', (req, res) => {
 // مسیر برای بررسی توکن
 app.post('/verify-token', authenticateToken, (req, res) => {
     // اگر به اینجا رسیدیم، یعنی توکن معتبر است
+    console.log('Token is valid:', req.user); // چاپ اطلاعات کاربر برای دیباگ
+
     res.json({ message: 'Token is valid' }); // ارسال پیام به کلاینت مبنی بر معتبر بودن توکن
 });
 
