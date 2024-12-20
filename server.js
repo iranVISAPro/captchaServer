@@ -143,6 +143,12 @@ app.get('/get-tokens', (req, res) => {
     res.json({ tokens: preGeneratedTokens });
 });
 
+// مسیر برای بررسی توکن
+app.post('/verify-token', authenticateToken, (req, res) => {
+    // اگر به اینجا رسیدیم، یعنی توکن معتبر است
+    res.json({ message: 'Token is valid' }); // ارسال پیام به کلاینت مبنی بر معتبر بودن توکن
+});
+
 // راه‌اندازی سرور در پورت مشخص شده از Render
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
