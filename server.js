@@ -150,7 +150,8 @@ app.post('/verify-token', authenticateToken, (req, res) => {
     // اگر به اینجا رسیدیم، یعنی توکن معتبر است
     console.log('Token is valid:', req.user); // چاپ اطلاعات کاربر برای دیباگ
 
-    res.json({ message: 'Token is valid' }); // ارسال پیام به کلاینت مبنی بر معتبر بودن توکن
+    // ارسال پیام به کلاینت مبنی بر معتبر بودن توکن
+    res.json({ message: 'Token is valid', user: req.user }); 
 });
 
 // راه‌اندازی سرور در پورت مشخص شده از Render

@@ -1,7 +1,7 @@
 const jwt = require('jsonwebtoken');
 
 // کلید محرمانه خود را در اینجا قرار دهید یا از process.env استفاده کنید
-const SECRET_KEY = '9A(12m@!10E)!6s^6O^'; // اینجا کلید خودتان را بگذارید
+const SECRET_KEY = '9A(12m@!10E)!6s^6P^'; // اینجا کلید خودتان را بگذارید
 
 // تابع تولید توکن
 function generateToken(username) {
