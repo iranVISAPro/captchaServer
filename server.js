@@ -55,10 +55,12 @@ const authenticateToken = (req, res, next) => {
         return res.status(403).json({ message: 'No token provided' });
     }
 
-    const token = authHeader.split(' ')[1];
+    const token = authHeader.split(' ')[1]; // اینجا توجه کنید که "Bearer" حذف می‌شود و فقط توکن باقی می‌ماند
     if (!token) {
         return res.status(403).json({ message: 'Invalid token format' });
     }
+
+    console.log('Token received:', token);  // اضافه کردن لاگ برای نمایش توکن دریافتی
 
     jwt.verify(token, SECRET_KEY, (err, user) => {
         if (err) {
@@ -129,10 +131,12 @@ app.post('/verify-token', (req, res) => {
         return res.status(403).json({ message: 'No token provided' });
     }
 
-    const token = authHeader.split(' ')[1];
+    const token = authHeader.split(' ')[1]; // توجه داشته باشید که اینجا هم فرمت "Bearer" درست استفاده شده است
     if (!token) {
         return res.status(403).json({ message: 'Invalid token format' });
     }
+
+    console.log('Token received:', token);  // اضافه کردن لاگ برای نمایش توکن دریافتی
 
     jwt.verify(token, SECRET_KEY, (err, user) => {
         if (err) {
