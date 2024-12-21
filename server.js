@@ -98,6 +98,23 @@ app.post('/save-captcha', authenticateToken, async (req, res) => {
     }
 });
 
+// مسیر GET برای دریافت قدیمی‌ترین کپچا و حذف آن از دیتابیس
+app.get('/get-oldest-captcha', authenticateToken, async (req, res) => {
+    try {
+        const oldestCaptcha = await Captcha.findOne().sort({ created_at: 1 });
+
+        if (oldestCaptcha) {
+            await Captcha.deleteOne({ _id: oldestCaptcha._id });
+            res.status(200).json(oldestCaptcha);
+        } else {
+            res.status(404).json({ message: 'No captcha data found' });
+        }
+    } catch (error) {
+        console.error('Error fetching or deleting captcha:', error);
+        res.status(500).json({ message: 'Error fetching or deleting captcha', error });
+    }
+});
+
 // مسیر GET برای دریافت آخرین کپچا
 app.get('/get-latest-captcha', authenticateToken, async (req, res) => {
     try {

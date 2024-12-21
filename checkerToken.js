@@ -5,7 +5,7 @@ const SECRET_KEY = '9A(12m@!10E)!6s^6P^';
 
 // اطلاعاتی که می‌خواهید در توکن ذخیره کنید (مثلاً نام کاربری)
 const payload = {
-    username: 'user8', // نام کاربری
+    username: 'user1', // نام کاربری
     role: 'admin',     // نقش کاربر
 };
 
