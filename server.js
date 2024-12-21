@@ -2,11 +2,15 @@ const express = require('express');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
 const cors = require('cors');
-const jwt = require('jsonwebtoken'); // برای ایجاد و بررسی توکن
+const jwt = require('jsonwebtoken');
 
 const app = express();
-app.use(cors()); // فعال‌سازی CORS
-app.use(bodyParser.json()); // برای دریافت داده‌ها به صورت JSON
+
+// فعال‌سازی CORS
+app.use(cors());
+
+// برای دریافت داده‌ها به صورت JSON
+app.use(bodyParser.json());
 
 // کلید محرمانه برای امضای توکن‌ها
 const SECRET_KEY = '9A(12m@!10E)!6s^6P^';
@@ -26,7 +30,7 @@ mongoose.connect(dbURI)
 
 // ایجاد اسکیمای داده
 const captchaSchema = new mongoose.Schema({
-    captcha_value: { type: String, unique: true }, // ایجاد ایندکس یکتا برای captcha_value
+    captcha_value: { type: String, unique: true },
     user_input: { type: String, required: true },
     created_at: { type: Date, default: Date.now }
 });
@@ -34,39 +38,34 @@ const captchaSchema = new mongoose.Schema({
 // Middleware برای تبدیل user_input به حروف بزرگ قبل از ذخیره
 captchaSchema.pre('save', function (next) {
     if (this.user_input) {
-        // تبدیل user_input به حروف بزرگ
         this.user_input = this.user_input.toUpperCase();
     }
-    next(); // ادامه فرآیند ذخیره‌سازی
+    next();
 });
 
-// ایجاد TTL index به‌صورت دستی برای حذف رکوردها پس از 2 ساعت (7200 ثانیه)
+// ایجاد TTL index برای حذف رکوردها پس از 2 ساعت
 captchaSchema.index({ created_at: 1 }, { expireAfterSeconds: 7200 });
 
 const Captcha = mongoose.model('Captcha', captchaSchema, 'captchas');
 
 // Middleware برای اعتبارسنجی توکن
 const authenticateToken = (req, res, next) => {
-    const authHeader = req.headers['authorization']; // دریافت توکن از هدر Authorization
+    const authHeader = req.headers['authorization'];
     if (!authHeader) {
-        console.log('Authorization header is missing');
-        return res.status(403).json({ message: 'Access denied. No token provided.' });
+        return res.status(403).json({ message: 'No token provided' });
     }
 
     const token = authHeader.split(' ')[1];
     if (!token) {
-        console.log('Token is missing from authorization header');
-        return res.status(403).json({ message: 'Access denied. Invalid token format.' });
+        return res.status(403).json({ message: 'Invalid token format' });
     }
 
-    // اعتبارسنجی توکن
     jwt.verify(token, SECRET_KEY, (err, user) => {
         if (err) {
-            console.log('Token verification failed:', err.message);
-            return res.status(403).json({ message: 'Invalid or expired token.', error: err.message });
+            return res.status(403).json({ message: 'Invalid or expired token', error: err.message });
         }
-        req.user = user; // ذخیره اطلاعات کاربر در شیء درخواست
-        next(); // ادامه فرآیند
+        req.user = user;
+        next();
     });
 };
 
@@ -108,25 +107,7 @@ app.get('/get-latest-captcha', authenticateToken, async (req, res) => {
             res.status(404).json({ message: 'No captcha data found' });
         }
     } catch (error) {
-        console.error('Error fetching captcha:', error);
         res.status(500).json({ message: 'Error fetching captcha data', error });
-    }
-});
-
-// مسیر GET برای دریافت قدیمی‌ترین کپچا و حذف آن از دیتابیس
-app.get('/get-oldest-captcha', authenticateToken, async (req, res) => {
-    try {
-        const oldestCaptcha = await Captcha.findOne().sort({ created_at: 1 });
-
-        if (oldestCaptcha) {
-            await Captcha.deleteOne({ _id: oldestCaptcha._id });
-            res.status(200).json(oldestCaptcha);
-        } else {
-            res.status(404).json({ message: 'No captcha data found' });
-        }
-    } catch (error) {
-        console.error('Error fetching or deleting captcha:', error);
-        res.status(500).json({ message: 'Error fetching or deleting captcha', error });
     }
 });
 
@@ -141,35 +122,23 @@ app.get('/generate-tokens', (req, res) => {
     res.json({ tokens: preGeneratedTokens });
 });
 
-// مسیر برای مشاهده توکن‌های تولید شده
-app.get('/get-tokens', (req, res) => {
-    if (preGeneratedTokens.length === 0) {
-        return res.status(404).json({ message: 'No pre-generated tokens found' });
-    }
-    res.json({ tokens: preGeneratedTokens });
-});
-
 // مسیر برای بررسی توکن
 app.post('/verify-token', (req, res) => {
     const authHeader = req.headers['authorization'];
     if (!authHeader) {
-        console.log('Authorization header is missing');
-        return res.status(403).json({ message: 'Access denied. No token provided.' });
+        return res.status(403).json({ message: 'No token provided' });
     }
 
     const token = authHeader.split(' ')[1];
     if (!token) {
-        console.log('Token is missing from authorization header');
-        return res.status(403).json({ message: 'Access denied. Invalid token format.' });
+        return res.status(403).json({ message: 'Invalid token format' });
     }
 
     jwt.verify(token, SECRET_KEY, (err, user) => {
         if (err) {
-            console.log('Token verification failed:', err.message);
-            return res.status(403).json({ message: 'Invalid or expired token.', error: err.message });
+            return res.status(403).json({ message: 'Invalid or expired token', error: err.message });
         }
 
-        console.log('Token is valid:', user);
         res.json({ message: 'Token is valid', user });
     });
 });
