@@ -32,7 +32,7 @@ const captchaSchema = new mongoose.Schema({
 });
 
 // Middleware برای تبدیل user_input به حروف بزرگ قبل از ذخیره
-captchaSchema.pre('save', function(next) {
+captchaSchema.pre('save', function (next) {
     if (this.user_input) {
         // تبدیل user_input به حروف بزرگ
         this.user_input = this.user_input.toUpperCase();
@@ -47,18 +47,23 @@ const Captcha = mongoose.model('Captcha', captchaSchema, 'captchas');
 
 // Middleware برای اعتبارسنجی توکن
 const authenticateToken = (req, res, next) => {
-    const token = req.headers['authorization']; // دریافت توکن از هدر Authorization
-
-    if (!token) {
-        console.log('No token provided');
+    const authHeader = req.headers['authorization']; // دریافت توکن از هدر Authorization
+    if (!authHeader) {
+        console.log('Authorization header is missing');
         return res.status(403).json({ message: 'Access denied. No token provided.' });
+    }
+
+    const token = authHeader.split(' ')[1];
+    if (!token) {
+        console.log('Token is missing from authorization header');
+        return res.status(403).json({ message: 'Access denied. Invalid token format.' });
     }
 
     // اعتبارسنجی توکن
     jwt.verify(token, SECRET_KEY, (err, user) => {
         if (err) {
-            console.log('Token verification failed:', err);
-            return res.status(403).json({ message: 'Invalid or expired token.' });
+            console.log('Token verification failed:', err.message);
+            return res.status(403).json({ message: 'Invalid or expired token.', error: err.message });
         }
         req.user = user; // ذخیره اطلاعات کاربر در شیء درخواست
         next(); // ادامه فرآیند
@@ -70,11 +75,10 @@ app.post('/save-captcha', authenticateToken, async (req, res) => {
     const { captcha_value, user_input } = req.body;
 
     try {
-        // بررسی وجود captcha_value در دیتابیس قبل از ذخیره
         const existingCaptcha = await Captcha.findOne({ captcha_value });
 
         if (existingCaptcha) {
-            return res.status(409).json({ message: 'کپچا قبلاً ذخیره شده است' }); // ارسال پیام در صورت تکراری بودن
+            return res.status(409).json({ message: 'کپچا قبلاً ذخیره شده است' });
         }
 
         const newCaptchaData = new Captcha({
@@ -86,7 +90,7 @@ app.post('/save-captcha', authenticateToken, async (req, res) => {
         await newCaptchaData.save();
         res.status(200).json({ message: 'Data saved to MongoDB' });
     } catch (error) {
-        if (error.code === 11000) { // این خطا مربوط به duplicate key است
+        if (error.code === 11000) {
             return res.status(409).json({ message: 'کپچا قبلاً ذخیره شده است' });
         }
         res.status(500).json({ message: 'Error saving data', error });
@@ -97,7 +101,7 @@ app.post('/save-captcha', authenticateToken, async (req, res) => {
 app.get('/get-latest-captcha', authenticateToken, async (req, res) => {
     try {
         const latestCaptcha = await Captcha.findOne().sort({ created_at: -1 });
-        
+
         if (latestCaptcha) {
             res.status(200).json(latestCaptcha);
         } else {
@@ -129,9 +133,9 @@ app.get('/get-oldest-captcha', authenticateToken, async (req, res) => {
 // مسیر برای تولید توکن‌های پیشاپیش
 app.get('/generate-tokens', (req, res) => {
     const usernames = ['user1', 'user2', 'user3', 'user4', 'user5', 'user6', 'user7', 'user8', 'user9', 'user10'];
-    
+
     preGeneratedTokens = usernames.map(username => {
-        return jwt.sign({ username }, SECRET_KEY, { expiresIn: '30d' }); // توکن معتبر برای 30 روز
+        return jwt.sign({ username }, SECRET_KEY, { expiresIn: '30d' });
     });
 
     res.json({ tokens: preGeneratedTokens });
@@ -146,15 +150,31 @@ app.get('/get-tokens', (req, res) => {
 });
 
 // مسیر برای بررسی توکن
-app.post('/verify-token', authenticateToken, (req, res) => {
-    // اگر به اینجا رسیدیم، یعنی توکن معتبر است
-    console.log('Token is valid:', req.user); // چاپ اطلاعات کاربر برای دیباگ
+app.post('/verify-token', (req, res) => {
+    const authHeader = req.headers['authorization'];
+    if (!authHeader) {
+        console.log('Authorization header is missing');
+        return res.status(403).json({ message: 'Access denied. No token provided.' });
+    }
 
-    // ارسال پیام به کلاینت مبنی بر معتبر بودن توکن
-    res.json({ message: 'Token is valid', user: req.user }); 
+    const token = authHeader.split(' ')[1];
+    if (!token) {
+        console.log('Token is missing from authorization header');
+        return res.status(403).json({ message: 'Access denied. Invalid token format.' });
+    }
+
+    jwt.verify(token, SECRET_KEY, (err, user) => {
+        if (err) {
+            console.log('Token verification failed:', err.message);
+            return res.status(403).json({ message: 'Invalid or expired token.', error: err.message });
+        }
+
+        console.log('Token is valid:', user);
+        res.json({ message: 'Token is valid', user });
+    });
 });
 
-// راه‌اندازی سرور در پورت مشخص شده از Render
+// راه‌اندازی سرور
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
