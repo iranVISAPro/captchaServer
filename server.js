@@ -13,7 +13,7 @@ app.use(cors());
 app.use(bodyParser.json());
 
 // کلید محرمانه برای امضای توکن‌ها
-const SECRET_KEY = '9A(12m@!10E)!6s^6P^';
+const SECRET_KEY = 'SunshineOnlineServices';
 
 // آرایه برای ذخیره توکن‌های تولید شده
 let preGeneratedTokens = [];
