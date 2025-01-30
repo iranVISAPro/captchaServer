@@ -43,8 +43,8 @@ captchaSchema.pre('save', function (next) {
     next();
 });
 
-// ایجاد TTL index برای حذف رکوردها پس از 2 ساعت
-captchaSchema.index({ created_at: 1 }, { expireAfterSeconds: 7200 });
+// ایجاد TTL index برای حذف رکوردها پس از 15 دقیقه
+captchaSchema.index({ created_at: 1 }, { expireAfterSeconds: 900 });
 
 const Captcha = mongoose.model('Captcha', captchaSchema, 'captchas');
 
@@ -98,7 +98,25 @@ app.post('/save-captcha', authenticateToken, async (req, res) => {
     }
 });
 
-// مسیر GET برای دریافت قدیمی‌ترین کپچا و حذف آن از دیتابیس
+// مسیر GET برای دریافت جدیدترین کپچا و حذف آن از دیتابیس
+app.get('/get-newest-captcha', authenticateToken, async (req, res) => {
+    try {
+        // از جدیدترین کپچاها شروع می‌کنیم
+        const newestCaptcha = await Captcha.findOne().sort({ created_at: -1 });
+
+        if (newestCaptcha) {
+            await Captcha.deleteOne({ _id: newestCaptcha._id });
+            res.status(200).json(newestCaptcha);
+        } else {
+            res.status(404).json({ message: 'No captcha data found' });
+        }
+    } catch (error) {
+        console.error('Error fetching or deleting captcha:', error);
+        res.status(500).json({ message: 'Error fetching or deleting captcha', error });
+    }
+});
+
+// مسیر GET برای دریافت قدیمی‌ترین کپچا
 app.get('/get-oldest-captcha', authenticateToken, async (req, res) => {
     try {
         const oldestCaptcha = await Captcha.findOne().sort({ created_at: 1 });
@@ -112,21 +130,6 @@ app.get('/get-oldest-captcha', authenticateToken, async (req, res) => {
     } catch (error) {
         console.error('Error fetching or deleting captcha:', error);
         res.status(500).json({ message: 'Error fetching or deleting captcha', error });
-    }
-});
-
-// مسیر GET برای دریافت آخرین کپچا
-app.get('/get-latest-captcha', authenticateToken, async (req, res) => {
-    try {
-        const latestCaptcha = await Captcha.findOne().sort({ created_at: -1 });
-
-        if (latestCaptcha) {
-            res.status(200).json(latestCaptcha);
-        } else {
-            res.status(404).json({ message: 'No captcha data found' });
-        }
-    } catch (error) {
-        res.status(500).json({ message: 'Error fetching captcha data', error });
     }
 });
 
