@@ -44,7 +44,7 @@ captchaSchema.pre('save', function (next) {
 });
 
 // ایجاد TTL index برای حذف رکوردها پس از 15 دقیقه
-captchaSchema.index({ created_at: 1 }, { expireAfterSeconds: 900 });
+captchaSchema.index({ created_at: 1 }, { expireAfterSeconds: 1800 });
 
 const Captcha = mongoose.model('Captcha', captchaSchema, 'captchas');
 
