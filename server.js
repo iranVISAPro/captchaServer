@@ -105,8 +105,8 @@ app.get('/get-newest-captcha', authenticateToken, async (req, res) => {
         const newestCaptcha = await Captcha.findOne().sort({ created_at: -1 });
 
         if (newestCaptcha) {
-            await Captcha.deleteOne({ _id: newestCaptcha._id });
-            res.status(200).json(newestCaptcha);
+            await Captcha.deleteOne({ _id: newestCaptcha._id });  // حذف کپچا پس از استفاده
+            res.status(200).json(newestCaptcha);  // ارسال کپچا به کلاینت
         } else {
             res.status(404).json({ message: 'No captcha data found' });
         }
@@ -122,8 +122,8 @@ app.get('/get-oldest-captcha', authenticateToken, async (req, res) => {
         const oldestCaptcha = await Captcha.findOne().sort({ created_at: 1 });
 
         if (oldestCaptcha) {
-            await Captcha.deleteOne({ _id: oldestCaptcha._id });
-            res.status(200).json(oldestCaptcha);
+            await Captcha.deleteOne({ _id: oldestCaptcha._id });  // حذف کپچا پس از استفاده
+            res.status(200).json(oldestCaptcha);  // ارسال کپچا به کلاینت
         } else {
             res.status(404).json({ message: 'No captcha data found' });
         }
