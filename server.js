@@ -3,6 +3,8 @@ const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
+const redis = require('redis');
+const rateLimit = require('express-rate-limit');
 
 const app = express();
 
@@ -18,9 +20,13 @@ const SECRET_KEY = 'SunshineOnlineServices';
 // آرایه برای ذخیره توکن‌های تولید شده
 let preGeneratedTokens = [];
 
-// اتصال به MongoDB (رشته اتصال MongoDB Atlas)
+// اتصال به MongoDB (رشته اتصال MongoDB Atlas با Connection Pooling)
 const dbURI = 'mongodb+srv://sunshineonlineservices:Lovely%20alone@iranvisa.4iu1j.mongodb.net/captchaDB?retryWrites=true&w=majority&appName=iranVISA';
-mongoose.connect(dbURI)
+mongoose.connect(dbURI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+    poolSize: 10 // تعداد اتصالات همزمان
+})
     .then(() => {
         console.log('Connected to MongoDB');
     })
@@ -48,6 +54,9 @@ captchaSchema.index({ created_at: 1 }, { expireAfterSeconds: 3600 });
 
 const Captcha = mongoose.model('Captcha', captchaSchema, 'captchas');
 
+// ایجاد Redis client برای کش کردن داده‌ها
+const redisClient = redis.createClient();
+
 // Middleware برای اعتبارسنجی توکن
 const authenticateToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
@@ -55,12 +64,10 @@ const authenticateToken = (req, res, next) => {
         return res.status(403).json({ message: 'No token provided' });
     }
 
-    const token = authHeader.split(' ')[1]; // اینجا توجه کنید که "Bearer" حذف می‌شود و فقط توکن باقی می‌ماند
+    const token = authHeader.split(' ')[1];
     if (!token) {
         return res.status(403).json({ message: 'Invalid token format' });
     }
-
-    console.log('Token received:', token);  // اضافه کردن لاگ برای نمایش توکن دریافتی
 
     jwt.verify(token, SECRET_KEY, (err, user) => {
         if (err) {
@@ -70,6 +77,16 @@ const authenticateToken = (req, res, next) => {
         next();
     });
 };
+
+// محدود کردن تعداد درخواست‌ها
+const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 دقیقه
+    max: 100, // حداکثر درخواست‌ها
+    message: 'Too many requests from this IP, please try again later'
+});
+
+// اعمال محدودیت برای همه مسیرها
+app.use(limiter);
 
 // مسیر POST برای ذخیره داده‌ها در MongoDB
 app.post('/save-captcha', authenticateToken, async (req, res) => {
@@ -88,6 +105,9 @@ app.post('/save-captcha', authenticateToken, async (req, res) => {
             created_at: new Date()
         });
 
+        // ذخیره‌سازی در Redis برای دسترسی سریع‌تر
+        redisClient.set(`captcha_${captcha_value}`, JSON.stringify(newCaptchaData), 'EX', 3600);
+
         await newCaptchaData.save();
         res.status(200).json({ message: 'Data saved to MongoDB' });
     } catch (error) {
@@ -101,7 +121,6 @@ app.post('/save-captcha', authenticateToken, async (req, res) => {
 // مسیر GET برای دریافت جدیدترین کپچا و حذف آن از دیتابیس
 app.get('/get-newest-captcha', authenticateToken, async (req, res) => {
     try {
-        // از جدیدترین کپچاها شروع می‌کنیم
         const newestCaptcha = await Captcha.findOne().sort({ created_at: -1 });
 
         if (newestCaptcha) {
@@ -119,10 +138,13 @@ app.get('/get-newest-captcha', authenticateToken, async (req, res) => {
 // مسیر GET برای دریافت قدیمی‌ترین کپچا
 app.get('/get-oldest-captcha', authenticateToken, async (req, res) => {
     try {
-        const oldestCaptcha = await Captcha.findOne().sort({ created_at: 1 });
+        const oldestCaptcha = await Captcha.findOneAndUpdate(
+            {},
+            { $set: { deleted_at: new Date() } },
+            { sort: { created_at: 1 }, new: true }
+        );
 
         if (oldestCaptcha) {
-            await Captcha.deleteOne({ _id: oldestCaptcha._id });
             res.status(200).json(oldestCaptcha);
         } else {
             res.status(404).json({ message: 'No captcha data found' });
@@ -151,12 +173,10 @@ app.post('/verify-token', (req, res) => {
         return res.status(403).json({ message: 'No token provided' });
     }
 
-    const token = authHeader.split(' ')[1]; // توجه داشته باشید که اینجا هم فرمت "Bearer" درست استفاده شده است
+    const token = authHeader.split(' ')[1];
     if (!token) {
         return res.status(403).json({ message: 'Invalid token format' });
     }
-
-    console.log('Token received:', token);  // اضافه کردن لاگ برای نمایش توکن دریافتی
 
     jwt.verify(token, SECRET_KEY, (err, user) => {
         if (err) {
