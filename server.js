@@ -18,11 +18,15 @@ const SECRET_KEY = 'SunshineOnlineServices';
 // آرایه برای ذخیره توکن‌های تولید شده
 let preGeneratedTokens = [];
 
-// اتصال به MongoDB
+// اتصال به MongoDB (رشته اتصال MongoDB Atlas)
 const dbURI = 'mongodb+srv://sunshineonlineservices:Lovely%20alone@iranvisa.4iu1j.mongodb.net/captchaDB?retryWrites=true&w=majority&appName=iranVISA';
 mongoose.connect(dbURI)
-    .then(() => console.log('Connected to MongoDB'))
-    .catch((err) => console.error('Error connecting to MongoDB:', err));
+    .then(() => {
+        console.log('Connected to MongoDB');
+    })
+    .catch((err) => {
+        console.error('Error connecting to MongoDB:', err);
+    });
 
 // ایجاد اسکیمای داده
 const captchaSchema = new mongoose.Schema({
@@ -50,10 +54,13 @@ const authenticateToken = (req, res, next) => {
     if (!authHeader) {
         return res.status(403).json({ message: 'No token provided' });
     }
-    const token = authHeader.split(' ')[1];
+
+    const token = authHeader.split(' ')[1]; // اینجا توجه کنید که "Bearer" حذف می‌شود و فقط توکن باقی می‌ماند
     if (!token) {
         return res.status(403).json({ message: 'Invalid token format' });
     }
+
+    console.log('Token received:', token);  // اضافه کردن لاگ برای نمایش توکن دریافتی
 
     jwt.verify(token, SECRET_KEY, (err, user) => {
         if (err) {
@@ -67,12 +74,20 @@ const authenticateToken = (req, res, next) => {
 // مسیر POST برای ذخیره داده‌ها در MongoDB
 app.post('/save-captcha', authenticateToken, async (req, res) => {
     const { captcha_value, user_input } = req.body;
+
     try {
         const existingCaptcha = await Captcha.findOne({ captcha_value });
+
         if (existingCaptcha) {
             return res.status(409).json({ message: 'کپچا قبلاً ذخیره شده است' });
         }
-        const newCaptchaData = new Captcha({ captcha_value, user_input, created_at: new Date() });
+
+        const newCaptchaData = new Captcha({
+            captcha_value,
+            user_input,
+            created_at: new Date()
+        });
+
         await newCaptchaData.save();
         res.status(200).json({ message: 'Data saved to MongoDB' });
     } catch (error) {
@@ -86,7 +101,9 @@ app.post('/save-captcha', authenticateToken, async (req, res) => {
 // مسیر GET برای دریافت جدیدترین کپچا و حذف آن از دیتابیس
 app.get('/get-newest-captcha', authenticateToken, async (req, res) => {
     try {
+        // از جدیدترین کپچاها شروع می‌کنیم
         const newestCaptcha = await Captcha.findOne().sort({ created_at: -1 });
+
         if (newestCaptcha) {
             await Captcha.deleteOne({ _id: newestCaptcha._id });
             res.status(200).json(newestCaptcha);
@@ -99,13 +116,14 @@ app.get('/get-newest-captcha', authenticateToken, async (req, res) => {
     }
 });
 
-// مسیر GET برای دریافت جدیدترین کپچا
+// مسیر GET برای دریافت قدیمی‌ترین کپچا
 app.get('/get-oldest-captcha', authenticateToken, async (req, res) => {
     try {
-        const newestCaptcha = await Captcha.findOne().sort({ created_at: -1 });
-        if (newestCaptcha) {
-            await Captcha.deleteOne({ _id: newestCaptcha._id });
-            res.status(200).json(newestCaptcha);
+        const oldestCaptcha = await Captcha.findOne().sort({ created_at: 1 });
+
+        if (oldestCaptcha) {
+            await Captcha.deleteOne({ _id: oldestCaptcha._id });
+            res.status(200).json(oldestCaptcha);
         } else {
             res.status(404).json({ message: 'No captcha data found' });
         }
@@ -118,7 +136,11 @@ app.get('/get-oldest-captcha', authenticateToken, async (req, res) => {
 // مسیر برای تولید توکن‌های پیشاپیش
 app.get('/generate-tokens', (req, res) => {
     const usernames = ['user1', 'user2', 'user3', 'user4', 'user5', 'user6', 'user7', 'user8', 'user9', 'user10'];
-    preGeneratedTokens = usernames.map(username => jwt.sign({ username }, SECRET_KEY, { expiresIn: '30d' }));
+
+    preGeneratedTokens = usernames.map(username => {
+        return jwt.sign({ username }, SECRET_KEY, { expiresIn: '30d' });
+    });
+
     res.json({ tokens: preGeneratedTokens });
 });
 
@@ -128,14 +150,19 @@ app.post('/verify-token', (req, res) => {
     if (!authHeader) {
         return res.status(403).json({ message: 'No token provided' });
     }
-    const token = authHeader.split(' ')[1];
+
+    const token = authHeader.split(' ')[1]; // توجه داشته باشید که اینجا هم فرمت "Bearer" درست استفاده شده است
     if (!token) {
         return res.status(403).json({ message: 'Invalid token format' });
     }
+
+    console.log('Token received:', token);  // اضافه کردن لاگ برای نمایش توکن دریافتی
+
     jwt.verify(token, SECRET_KEY, (err, user) => {
         if (err) {
             return res.status(403).json({ message: 'Invalid or expired token', error: err.message });
         }
+
         res.json({ message: 'Token is valid', user });
     });
 });
