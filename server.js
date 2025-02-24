@@ -75,37 +75,96 @@ const authenticateToken = (req, res, next) => {
 app.post('/save-captcha', authenticateToken, async (req, res) => {
     const { captcha_value, user_input } = req.body;
 
-    // چاپ داده‌های ورودی برای بررسی
-    console.log('Received Captcha:', captcha_value, user_input);
-
     try {
-        // بررسی اینکه آیا این کپچا قبلاً ذخیره شده است یا خیر
         const existingCaptcha = await Captcha.findOne({ captcha_value });
 
         if (existingCaptcha) {
-            console.log('Captcha already exists:', captcha_value);  // چاپ وقتی کپچا موجود باشد
             return res.status(409).json({ message: 'کپچا قبلاً ذخیره شده است' });
         }
 
-        // ایجاد یک شی جدید برای ذخیره داده‌ها
         const newCaptchaData = new Captcha({
             captcha_value,
             user_input,
             created_at: new Date()
         });
 
-        // ذخیره کپچا جدید در دیتابیس
         await newCaptchaData.save();
-        console.log('Captcha saved successfully');  // چاپ موفقیت آمیز بودن ذخیره داده‌ها
-
         res.status(200).json({ message: 'Data saved to MongoDB' });
     } catch (error) {
-        // چاپ خطاها
-        console.error('Error saving captcha:', error);
-
-        // ارسال خطای 500 در صورت بروز مشکل
+        if (error.code === 11000) {
+            return res.status(409).json({ message: 'کپچا قبلاً ذخیره شده است' });
+        }
         res.status(500).json({ message: 'Error saving data', error });
     }
+});
+
+// مسیر GET برای دریافت جدیدترین کپچا و حذف آن از دیتابیس
+app.get('/get-newest-captcha', authenticateToken, async (req, res) => {
+    try {
+        // از جدیدترین کپچاها شروع می‌کنیم
+        const newestCaptcha = await Captcha.findOne().sort({ created_at: -1 });
+
+        if (newestCaptcha) {
+            await Captcha.deleteOne({ _id: newestCaptcha._id });
+            res.status(200).json(newestCaptcha);
+        } else {
+            res.status(404).json({ message: 'No captcha data found' });
+        }
+    } catch (error) {
+        console.error('Error fetching or deleting captcha:', error);
+        res.status(500).json({ message: 'Error fetching or deleting captcha', error });
+    }
+});
+
+// مسیر GET برای دریافت قدیمی‌ترین کپچا
+app.get('/get-oldest-captcha', authenticateToken, async (req, res) => {
+    try {
+        const oldestCaptcha = await Captcha.findOne().sort({ created_at: 1 });
+
+        if (oldestCaptcha) {
+            await Captcha.deleteOne({ _id: oldestCaptcha._id });
+            res.status(200).json(oldestCaptcha);
+        } else {
+            res.status(404).json({ message: 'No captcha data found' });
+        }
+    } catch (error) {
+        console.error('Error fetching or deleting captcha:', error);
+        res.status(500).json({ message: 'Error fetching or deleting captcha', error });
+    }
+});
+
+// مسیر برای تولید توکن‌های پیشاپیش
+app.get('/generate-tokens', (req, res) => {
+    const usernames = ['user1', 'user2', 'user3', 'user4', 'user5', 'user6', 'user7', 'user8', 'user9', 'user10'];
+
+    preGeneratedTokens = usernames.map(username => {
+        return jwt.sign({ username }, SECRET_KEY, { expiresIn: '30d' });
+    });
+
+    res.json({ tokens: preGeneratedTokens });
+});
+
+// مسیر برای بررسی توکن
+app.post('/verify-token', (req, res) => {
+    const authHeader = req.headers['authorization'];
+    if (!authHeader) {
+        return res.status(403).json({ message: 'No token provided' });
+    }
+
+    const token = authHeader.split(' ')[1]; // توجه داشته باشید که اینجا هم فرمت "Bearer" درست استفاده شده است
+    if (!token) {
+        return res.status(403).json({ message: 'Invalid token format' });
+    }
+
+    console.log('Token received:', token);  // اضافه کردن لاگ برای نمایش توکن دریافتی
+
+    jwt.verify(token, SECRET_KEY, (err, user) => {
+        if (err) {
+            return res.status(403).json({ message: 'Invalid or expired token', error: err.message });
+        }
+
+        res.json({ message: 'Token is valid', user });
+    });
 });
 
 // راه‌اندازی سرور
