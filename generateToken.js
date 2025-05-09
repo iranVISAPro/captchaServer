@@ -11,7 +11,7 @@ function generateToken(username) {
 }
 
 // مثال: تولید توکن برای یک کاربر
-const username = 'user1'; // نام کاربری را تغییر دهید
+const username = 'user10'; // نام کاربری را تغییر دهید
 const token = generateToken(username);
 console.log(`Generated token for ${username}:`);
 console.log(token);
