@@ -13,13 +13,13 @@ app.use(cors());
 app.use(bodyParser.json());
 
 // کلید محرمانه برای امضای توکن‌ها
-const SECRET_KEY = 'SunshineOnlineServices';
+const SECRET_KEY = 'longLiveHumanity';
 
 // آرایه برای ذخیره توکن‌های تولید شده
 let preGeneratedTokens = [];
 
 // رشته اتصال جدید به MongoDB Atlas (اطلاعات شما باید به‌روز شود)
-const dbURI = process.env.MONGO_URI || 'mongodb+srv://<username>:<password>@<cluster>.mongodb.net/captchaDB?retryWrites=true&w=majority&appName=iranVISA';
+const dbURI = process.env.MONGO_URI || 'mongodb+srv://iranvisa9667:Frozan123@iranvisapro.hieme5l.mongodb.net/?retryWrites=true&w=majority&appName=iranVISAPro';
 mongoose.connect(dbURI)
     .then(() => {
         console.log('Connected to MongoDB');

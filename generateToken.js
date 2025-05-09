@@ -1,7 +1,7 @@
 const jwt = require('jsonwebtoken');
 
 // کلید محرمانه خود را در اینجا قرار دهید یا از process.env استفاده کنید
-const SECRET_KEY = 'SunshineOnlineServices'; // اینجا کلید خودتان را بگذارید
+const SECRET_KEY = 'longLiveHumanity'; // اینجا کلید خودتان را بگذارید
 
 // تابع تولید توکن
 function generateToken(username) {
@@ -11,7 +11,7 @@ function generateToken(username) {
 }
 
 // مثال: تولید توکن برای یک کاربر
-const username = 'user2'; // نام کاربری را تغییر دهید
+const username = 'user1'; // نام کاربری را تغییر دهید
 const token = generateToken(username);
 console.log(`Generated token for ${username}:`);
 console.log(token);
