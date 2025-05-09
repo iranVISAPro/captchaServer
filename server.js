@@ -16,26 +16,26 @@ mongoose.connect(dbURI)
     .then(() => console.log('Connected to MongoDB'))
     .catch((err) => console.error('Error connecting to MongoDB:', err));
 
-// اسکیمای کپچا
-const captchaSchema = new mongoose.Schema({
-    captcha_value: { type: String, unique: true },
-    user_input: { type: String, required: true },
-    username: { type: String, required: true }, // 👈 اضافه شد
-    created_at: { type: Date, default: Date.now }
-});
+// تابع ساخت مدل برای هر کاربر
+function getCaptchaModel(username) {
+    const schema = new mongoose.Schema({
+        captcha_value: { type: String, unique: true },
+        user_input: { type: String, required: true },
+        username: { type: String, required: true },
+        created_at: { type: Date, default: Date.now }
+    });
 
-// قبل از ذخیره حروف را به بزرگ تبدیل کن
-captchaSchema.pre('save', function (next) {
-    if (this.user_input) {
-        this.user_input = this.user_input.toUpperCase();
-    }
-    next();
-});
+    schema.index({ created_at: 1 }, { expireAfterSeconds: 3600 });
 
-// TTL برای پاک‌سازی خودکار
-captchaSchema.index({ created_at: 1 }, { expireAfterSeconds: 3600 });
+    schema.pre('save', function (next) {
+        if (this.user_input) {
+            this.user_input = this.user_input.toUpperCase();
+        }
+        next();
+    });
 
-const Captcha = mongoose.model('Captcha', captchaSchema, 'captchas');
+    return mongoose.models[username] || mongoose.model(username, schema, username);
+}
 
 // Middleware احراز هویت
 const authenticateToken = (req, res, next) => {
@@ -52,10 +52,12 @@ const authenticateToken = (req, res, next) => {
     });
 };
 
-// 📌 مسیر ذخیره کپچا
+// ذخیره کپچا
 app.post('/save-captcha', authenticateToken, async (req, res) => {
     const { captcha_value, user_input } = req.body;
     const username = req.user.username;
+
+    const Captcha = getCaptchaModel(username);
 
     try {
         const existingCaptcha = await Captcha.findOne({ captcha_value });
@@ -66,7 +68,7 @@ app.post('/save-captcha', authenticateToken, async (req, res) => {
         const newCaptchaData = new Captcha({
             captcha_value,
             user_input,
-            username, // 👈 ذخیره‌کننده
+            username,
             created_at: new Date()
         });
 
@@ -80,25 +82,26 @@ app.post('/save-captcha', authenticateToken, async (req, res) => {
     }
 });
 
-// 📌 مسیر گرفتن جدیدترین کپچا
+// گرفتن جدیدترین کپچا
 app.get('/get-newest-captcha', authenticateToken, async (req, res) => {
     const currentUser = req.user.username;
+    const CaptchaModel = getCaptchaModel(currentUser);
 
     try {
-        // اول کپچاهای خودش
-        const userCaptcha = await Captcha.findOne({ username: currentUser }).sort({ created_at: -1 });
+        const userCaptcha = await CaptchaModel.findOne().sort({ created_at: -1 });
         if (userCaptcha) {
-            await Captcha.deleteOne({ _id: userCaptcha._id });
+            await CaptchaModel.deleteOne({ _id: userCaptcha._id });
             return res.status(200).json(userCaptcha);
         }
 
-        // اگر یوزر اول بود، کپچاهای بقیه رو هم مجاز بدون
+        // فقط user1 می‌تواند از دیگران استفاده کند
         if (currentUser === 'user1') {
             const otherUsers = ['user2', 'user3', 'user4', 'user5', 'user6', 'user7', 'user8', 'user9', 'user10'];
             for (const username of otherUsers) {
-                const otherCaptcha = await Captcha.findOne({ username }).sort({ created_at: -1 });
+                const OtherModel = getCaptchaModel(username);
+                const otherCaptcha = await OtherModel.findOne().sort({ created_at: -1 });
                 if (otherCaptcha) {
-                    await Captcha.deleteOne({ _id: otherCaptcha._id });
+                    await OtherModel.deleteOne({ _id: otherCaptcha._id });
                     return res.status(200).json(otherCaptcha);
                 }
             }
@@ -111,16 +114,17 @@ app.get('/get-newest-captcha', authenticateToken, async (req, res) => {
     }
 });
 
-// 📌 مسیر تولید توکن‌ها
+// تولید توکن
 app.get('/generate-tokens', (req, res) => {
     const usernames = ['user1', 'user2', 'user3', 'user4', 'user5', 'user6', 'user7', 'user8', 'user9', 'user10'];
     preGeneratedTokens = usernames.map(username => {
         return jwt.sign({ username }, SECRET_KEY, { expiresIn: '30d' });
     });
+
     res.json({ tokens: preGeneratedTokens });
 });
 
-// 📌 مسیر بررسی توکن
+// بررسی توکن
 app.post('/verify-token', (req, res) => {
     const authHeader = req.headers['authorization'];
     if (!authHeader) return res.status(403).json({ message: 'No token provided' });
