@@ -8,7 +8,7 @@ const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
-const SECRET_KEY = 'longLiveHumanity';
+const SECRET_KEY = 'longleave';
 let preGeneratedTokens = [];
 
 const dbURI = process.env.MONGO_URI || 'mongodb+srv://iranvisa9667:Frozan123@iranvisapro.hieme5l.mongodb.net/?retryWrites=true&w=majority&appName=iranVISAPro';
@@ -25,7 +25,7 @@ function getCaptchaModel(username) {
         created_at: { type: Date, default: Date.now }
     });
 
-    schema.index({ created_at: 1 }, { expireAfterSeconds: 3600 });
+    schema.index({ created_at: 1 }, { expireAfterSeconds: 7200 });
 
     schema.pre('save', function (next) {
         if (this.user_input) {
