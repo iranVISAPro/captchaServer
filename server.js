@@ -16,7 +16,6 @@ mongoose.connect(dbURI)
     .then(() => console.log('Connected to MongoDB'))
     .catch((err) => console.error('Error connecting to MongoDB:', err));
 
-// تابع ساخت مدل برای هر کاربر
 function getCaptchaModel(username) {
     const schema = new mongoose.Schema({
         captcha_value: { type: String, unique: true },
@@ -37,7 +36,6 @@ function getCaptchaModel(username) {
     return mongoose.models[username] || mongoose.model(username, schema, username);
 }
 
-// Middleware احراز هویت
 const authenticateToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
     if (!authHeader) return res.status(403).json({ message: 'No token provided' });
@@ -52,7 +50,6 @@ const authenticateToken = (req, res, next) => {
     });
 };
 
-// ذخیره کپچا
 app.post('/save-captcha', authenticateToken, async (req, res) => {
     const { captcha_value, user_input } = req.body;
     const username = req.user.username;
@@ -82,7 +79,6 @@ app.post('/save-captcha', authenticateToken, async (req, res) => {
     }
 });
 
-// گرفتن جدیدترین کپچا
 app.get('/get-newest-captcha', authenticateToken, async (req, res) => {
     const currentUser = req.user.username;
     const CaptchaModel = getCaptchaModel(currentUser);
@@ -94,7 +90,6 @@ app.get('/get-newest-captcha', authenticateToken, async (req, res) => {
             return res.status(200).json(userCaptcha);
         }
 
-        // فقط user1 می‌تواند از دیگران استفاده کند
         if (currentUser === 'user1') {
             const otherUsers = ['user2', 'user3', 'user4', 'user5', 'user6', 'user7', 'user8', 'user9', 'user10'];
             for (const username of otherUsers) {
@@ -114,7 +109,33 @@ app.get('/get-newest-captcha', authenticateToken, async (req, res) => {
     }
 });
 
-// تولید توکن
+// ✅ تعداد کپچاها برای یوزرها
+app.get('/captcha-count', authenticateToken, async (req, res) => {
+    const currentUser = req.user.username;
+
+    try {
+        if (currentUser === 'user1') {
+            const usernames = ['user1', 'user2', 'user3', 'user4', 'user5', 'user6', 'user7', 'user8', 'user9'];
+            let total = 0;
+
+            for (const username of usernames) {
+                const CaptchaModel = getCaptchaModel(username);
+                const count = await CaptchaModel.countDocuments();
+                total += count;
+            }
+
+            return res.json({ count: total });
+        } else {
+            const CaptchaModel = getCaptchaModel(currentUser);
+            const count = await CaptchaModel.countDocuments();
+            return res.json({ count });
+        }
+    } catch (error) {
+        console.error('خطا در گرفتن تعداد کپچا:', error);
+        res.status(500).json({ message: 'خطا در پردازش درخواست', error });
+    }
+});
+
 app.get('/generate-tokens', (req, res) => {
     const usernames = ['user1', 'user2', 'user3', 'user4', 'user5', 'user6', 'user7', 'user8', 'user9', 'user10'];
     preGeneratedTokens = usernames.map(username => {
@@ -124,7 +145,6 @@ app.get('/generate-tokens', (req, res) => {
     res.json({ tokens: preGeneratedTokens });
 });
 
-// بررسی توکن
 app.post('/verify-token', (req, res) => {
     const authHeader = req.headers['authorization'];
     if (!authHeader) return res.status(403).json({ message: 'No token provided' });
@@ -138,7 +158,6 @@ app.post('/verify-token', (req, res) => {
     });
 });
 
-// راه‌اندازی سرور
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
