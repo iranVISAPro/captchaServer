@@ -8,7 +8,7 @@ const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
-const SECRET_KEY = 'longleave';
+const SECRET_KEY = '9A(12m@!10E)!6s^6O^';
 let preGeneratedTokens = [];
 
 const dbURI = process.env.MONGO_URI || 'mongodb+srv://iranvisa9667:Frozan123@iranvisapro.hieme5l.mongodb.net/?retryWrites=true&w=majority&appName=iranVISAPro';
